@@ -4,8 +4,10 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 
+#https://medium.com/analytics-vidhya/derivative-of-log-loss-function-for-logistic-regression-9b832f025c2d
+
 # prepare data
-bc = datasets.load_breast_cancer()
+bc = datasets.load_breast_cancer()  
 X,y = bc.data,bc.target
 
 X_train,X_test,y_train,y_test = train_test_split(X,y,test_size=0.2,random_state=123)
@@ -29,6 +31,7 @@ class LogisticRegression:
         self.learning_rate = learning_rate
         self.n_samples,self.n_features = self.X.shape
         self.W = np.random.rand(self.n_features,1)
+        self.b = np.random.rand(1,1)
     def sigmoid(self,z):
         epsilon = 0.001
         a = 1.0/(1.0+np.exp(-z)+epsilon)
@@ -37,32 +40,34 @@ class LogisticRegression:
         l = -1*( self.y*np.log(y_pred) + (1-self.y)*np.log(1-y_pred) ) + (self.lmda/2)*np.sum(self.W*self.W)
         l/=self.n_samples
         return np.sum(l,axis=0)
-    def BCELoss_dev(self,z):
-        temp = z - self.y
-        d = (1.0/self.n_samples)*np.matmul(np.transpose(self.X),temp) + lmda*self.W/self.n_samples
-        return d
+    def BCELoss_dev(self,y_pred):
+        temp = y_pred - self.y
+        wd = (1.0/self.n_samples)*np.matmul(np.transpose(self.X),temp) + lmda*self.W/self.n_samples
+        bd = (1.0/self.n_samples)*np.sum(temp)
+        return wd,bd
     def forward(self,X=None):
         if X is None:
-            z = np.matmul(self.X,self.W)
+            z = np.matmul(self.X,self.W) + self.b
         else:
-            z = np.matmul(X,self.W)
+            z = np.matmul(X,self.W) + self.b
         a = self.sigmoid(z)
-        return z,a
+        return a
     def train(self):
         losses = list()
         for epoch in range(self.n_epochs):
             #forward
-            z,y_pred = self.forward()
+            y_pred = self.forward()
             #loss
             l = self.BCELoss(y_pred)
             losses.append(l)
             #print(f'loss:{l}')
             #backprop
-            w_dev = self.BCELoss_dev(z)
+            wd,bd = self.BCELoss_dev(y_pred)
             #update weights
-            self.W-= self.learning_rate*w_dev
+            self.W-= self.learning_rate*wd
+            self.b-= self.learning_rate*bd
         return losses
-lmda = 0.01
+lmda = 0.1
 learning_rate = 0.005
 n_epochs = 500
 def plot_general(x,y):
@@ -82,7 +87,7 @@ plot_general(x,losses)
 
 #testing
 m_test = X_test.shape[0]
-z,y_pred = model.forward(X_test)
+y_pred = model.forward(X_test)
 y_pred_rounded = np.round(y_pred)
 correct = np.sum(y_pred_rounded == y_test)
 print(f'accuracy:{correct/m_test}')
